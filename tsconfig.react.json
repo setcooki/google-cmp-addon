@@ -1,0 +1,22 @@
+{
+  "extends": ".tsconfig.json",
+  "target": "es5",
+  "module": "esnext",
+  "sourceMap": true,
+  "moduleResolution": "node",
+  "rootDir": "src",
+  "forceConsistentCasingInFileNames": true,
+  "noImplicitReturns": true,
+  "noImplicitThis": true,
+  "noImplicitAny": true,
+  "importHelpers": true,
+  "strictNullChecks": true,
+  "suppressImplicitAnyIndexErrors": true,
+  "noUnusedLocals": true,
+  "outDir": "./local",
+  "lib": [
+    "dom",
+    "dom.iterable",
+    "esnext"
+  ]
+}
