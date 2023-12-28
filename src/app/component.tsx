@@ -1,5 +1,5 @@
 import { ConfigType } from "../types";
-import { app } from "../main";
+import App from "../core/app";
 
 export interface GcmpComponentProps {
   config: ConfigType;
@@ -7,6 +7,6 @@ export interface GcmpComponentProps {
 
 export const GcmpComponent = (props: GcmpComponentProps): null => {
   const { config } = props;
-  app(config);
-  return null
+  new App(config);
+  return null;
 };

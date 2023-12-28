@@ -13,6 +13,9 @@ module.exports = (env, argv) => {
       libraryTarget: "umd",
       globalObject: "this"
     },
+    optimization: {
+      minimize: true
+    },
     module: {
       rules: [{test: /\.t|js$/, use: "babel-loader"}]
     }
