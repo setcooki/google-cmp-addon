@@ -1,40 +1,150 @@
-import { ConfigType, ConsentsType, PurposesType, PurposeType } from "../types";
+import {
+  type ConfigType,
+  type ConsentsType,
+  ElementOptionsType,
+  type EmbedOptionsType,
+  type PurposesType,
+  type PurposeType,
+} from "../types";
 import Script from "./parts/script";
 import PartsElement from "./parts/element";
+import Iframe from "./parts/iframe";
+import Placeholder from "../utils/placeholder";
 
 class App {
+  initialized: boolean;
   debug: boolean;
-  waitForDom: boolean;
+  tcfVersion: number;
+  waitForDom: boolean | undefined;
+  initWithGoogle: boolean;
   root: Document | Element;
   purposes: PurposesType | null;
+  embedOptions: EmbedOptionsType | undefined;
+  elementOptions: ElementOptionsType | undefined;
+  onInit: (app: App) => void | undefined;
+  onAdStatus: ((status: number) => void) | undefined;
+
+  protected waitForGfcTimeout: null | ReturnType<typeof setTimeout> = setTimeout(
+    () => {},
+  );
+
+  private readonly waitForGfcInitTs: number;
 
   constructor(config: ConfigType) {
+    this.initialized = false;
+    this.tcfVersion = config.tcfVersion ?? 2.2;
     this.debug = config.debug ?? false;
-    this.waitForDom = config.waitForDom ?? true;
+    this.waitForDom = config.waitForDom ?? undefined;
+    this.initWithGoogle = config.initWithGoogle ?? true;
     this.root = config.root ?? document;
     this.purposes = config.purposes ?? null;
+    this.embedOptions = config.embedOptions ?? {
+      defaultHeight: "240px",
+      captionsTitle: "Please accept the terms for embedded content",
+    };
+    this.elementOptions = config.elementOptions ?? {};
+    this.waitForGfcInitTs = Date.now();
+    this.waitForGfcTimeout = null;
+    this.onInit = config.onInit ?? undefined;
+    this.onAdStatus = config.onAdStatus ?? undefined;
+    if (!this.initWithGoogle && this.waitForDom === undefined) {
+      this.waitForDom = true;
+    }
     this.init();
   }
 
   private init(): void {
+    if (this.debug) {
+      console.info("gcmp initializing");
+    }
     if (!this.purposes) {
       throw new Error("No purposes configured");
     }
-    this.initGoogle();
+    if (this.initWithGoogle) {
+      this.initGoogle();
+    } else {
+      this?.onInit(this);
+    }
     this.initCss();
+    this.initialized = true;
     if (this.debug) {
       console.info("gcmp initialized");
     }
   }
 
-  private initGoogle(): void {
-    if (!("googlefc" in window) || ("googlefc" in window && !window.googlefc)) {
+  private waitForGfc(callback: () => void): void {
+    if (this.waitForGfcInitTs + 3000 < Date.now()) {
+      this.waitForGfcTimeout = null;
       throw new Error("Google consent api not found");
     }
+    if ("googlefc" in window && window.googlefc) {
+      this.waitForGfcTimeout = null;
+      callback();
+    } else {
+      this.waitForGfcTimeout = setTimeout(() => {
+        this.waitForGfc(callback);
+      }, 10);
+    }
+  }
+
+  private initGoogle(): void {
+    this.waitForGfc(() => {
+      this?.onInit(this);
+      window.googlefc.callbackQueue.push({
+        "CONSENT_DATA_READY": () => {
+          window.googlefc.callbackQueue.push({
+            "AD_BLOCK_DATA_READY": () => {
+              if (this.debug) {
+                console.info("gcmp ad block data ready callback");
+              }
+              if (this.onAdStatus) {
+                this.onAdStatus(window.googlefc.getAllowAdsStatus());
+              }
+            },
+          });
+          if (this.debug) {
+            console.info("gcmp consent data ready callback");
+          }
+          if ("__tcfapi" in window && window.__tcfapi) {
+            window.__tcfapi(
+              "addEventListener",
+              this.tcfVersion,
+              (data: any) => {
+                if (this.debug) {
+                  console.info("gcmp tcfapi ready callback", data);
+                }
+                if (
+                  "purpose" in data &&
+                  data.purpose &&
+                  typeof data.purpose === "object"
+                ) {
+                  if (
+                    "consents" in data.purpose &&
+                    data.purpose.consents &&
+                    typeof data.purpose.consents === "object"
+                  ) {
+                    if (this.debug) {
+                      console.info(
+                        "gcmp tcfapi render consent",
+                        data.purpose.consents,
+                      );
+                    }
+                    this.render(data.purpose.consents as ConsentsType);
+                  }
+                }
+              },
+            );
+          }
+        },
+      });
+    });
   }
 
   private initCss(): void {
     const head = this.root.getElementsByTagName("head");
+    const placeholder = this.embedOptions?.svgBackground
+      ? this.embedOptions?.svgBackground
+      : Placeholder();
     if (head) {
       const css = `
         .gcmp-none {
@@ -42,6 +152,46 @@ class App {
           pointer-events: none;
           -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none;
           user-select: none;
+        }
+        .gcmp-embed {
+          position: relative;
+          display: block;
+          overflow: hidden;
+          max-width: 100%;
+          min-width: 240px;
+          min-height: ${this.embedOptions?.defaultHeight || "inherit"};
+          height: inherit;
+          padding-bottom: inherit;
+          background-image: url("data:image/svg+xml;base64, ${btoa(
+            placeholder,
+          )}");
+          background-color: transparent;
+          background-repeat: no-repeat;
+          background-size: cover;
+          background-position: center center;
+        }
+        .gcmp-embed-placeholder {
+          top: 50%;
+          left: 0;
+          position: absolute;
+          width: 100%;
+          text-align: center;
+          transform: translateY(-50%);
+          background: hsla(0, 0%, 0%, 0.8);
+          color: #fff;
+          font-size: 13px;
+          padding: 10px;
+        }
+        .gcmp-embed-caption {
+          overflow-wrap: break-word;
+          word-wrap: break-word;
+          -ms-word-break: break-all;
+          word-break: break-all;
+          word-break: break-word;
+          -ms-hyphens: auto;
+          -moz-hyphens: auto;
+          -webkit-hyphens: auto;
+          hyphens: auto;
         }
       `;
       const style = document.createElement("style");
@@ -51,19 +201,45 @@ class App {
     }
   }
 
+  revoke(): void {
+    if (!this.initialized) {
+      throw new Error("gcmp not initialized");
+    }
+    window.googlefc.callbackQueue.push({
+      CONSENT_DATA_READY: () => {
+        window.googlefc.showRevocationMessage();
+      },
+    });
+  }
+
   render(consents: ConsentsType): void {
     const _render = (): void => {
-      let purposes: { [key: number]: PurposeType } = {};
+      //const purposes = new Map<string, PurposeType>([]);
+      const purposes: Record<number, PurposeType[]> = {};
       this.purposes?.forEach((p: PurposeType): void => {
-        purposes[p.id as number] = p;
+        if (!(p.purpose in purposes)) {
+          purposes[p.purpose] = [];
+        }
+        purposes[p.purpose].push(p);
       });
+
       Object.keys(consents).forEach((k: any): void => {
-        let key = k as number;
-        let value = consents[key] as boolean;
+        const key = k as number;
+        const value = consents[key] as boolean;
         if (key in purposes) {
-          this.renderOnOff(purposes[key], value);
-          this.renderCookies(purposes[key], value);
-          this.renderStorage(purposes[key], value);
+          if (this.debug) {
+            console.info(
+              `gcmp rendering purpose: ${key} with consent: ${value}`,
+            );
+          }
+          purposes[key].forEach((p: PurposeType) => {
+            if (this.debug) {
+              console.info(`gcmp rendering object`, p);
+            }
+            this.renderOnOff(p, value);
+            this.renderCookies(p, value);
+            this.renderStorage(p, value);
+          });
         }
       });
     };
@@ -81,37 +257,66 @@ class App {
   }
 
   protected renderOnOff(purpose: PurposeType, on: boolean): void {
+    let elementOptions = this.elementOptions ?? {};
+    const tags: string[] = purpose.tags ?? [];
+    const mode: string | undefined = purpose.mode ?? undefined;
     const nodes: NodeListOf<HTMLElement> = this.root.querySelectorAll(
       purpose.selectors,
     );
     if (nodes.length) {
-      nodes.forEach((element: HTMLElement) => {
+      nodes.forEach((element: HTMLElement): void | null => {
         const name = element.nodeName.toLowerCase();
-
+        if (this.debug) {
+          console.info(
+            `gcmp rendering: ${name} for purpose: ${purpose.purpose} (${purpose.selectors}) to: ${on}`,
+          );
+        }
+        if (tags.length && !tags.includes(name)) {
+          if (this.debug) {
+            console.warn(
+              `gcmp skipping: ${name} for purpose: ${purpose.purpose} (${purpose.selectors}) since its not in provided tag list`,
+            );
+          }
+          return null;
+        }
         switch (name) {
           case "script":
             new Script(element)[on ? "on" : "off"]();
             break;
+          case "iframe":
+            new Iframe(element, this.embedOptions)[on ? "on" : "off"]();
+            break;
           default:
-            new PartsElement(element)[on ? "on" : "off"]();
+            if (this.debug) {
+              console.warn(
+                `gcmp tag: ${name} is not defined and falls back to default element`,
+              );
+            }
+            if (mode) {
+              elementOptions = {
+                ...elementOptions,
+                ...({ mode: mode } as ElementOptionsType),
+              };
+            }
+            new PartsElement(element, elementOptions)[on ? "on" : "off"]();
         }
       });
     }
   }
 
   protected renderCookies(purpose: PurposeType, on: boolean): void {
-    if (
-      !on &&
-      "cookies" in purpose &&
-      purpose.cookies &&
-      purpose.cookies.length
-    ) {
+    if (!on && "cookies" in purpose && purpose.cookies?.length) {
       const cookies: string[] = document.cookie.split(";");
-      if (cookies.length) {
+      if (cookies.length > 0) {
         cookies.forEach((cookie: string) => {
-          let name = cookie.trim().split("=")[0];
+          const name = cookie.trim().split("=")[0];
           purpose.cookies?.forEach((rule: RegExp) => {
             if (rule.test(name)) {
+              if (this.debug) {
+                console.info(
+                  `gcmp remove cookies: ${name} for purpose: ${purpose.purpose}`,
+                );
+              }
               document.cookie =
                 name + "=; Path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;";
             }
@@ -125,14 +330,18 @@ class App {
     if (!on) {
       if (
         "localStorage" in purpose &&
-        purpose.localStorage &&
-        purpose.localStorage.length &&
+        purpose.localStorage?.length &&
         window.localStorage
       ) {
-        const items: { [key: string]: any } = { ...window.localStorage };
+        const items: Record<string, any> = { ...window.localStorage };
         for (const [key, value] of Object.entries(items)) {
           purpose.localStorage?.forEach((rule: RegExp) => {
             if (rule.test(key)) {
+              if (this.debug) {
+                console.info(
+                  `gcmp remove from local storage: ${key}: ${value} for purpose: ${purpose.purpose}`,
+                );
+              }
               window.localStorage.removeItem(key);
             }
           });
@@ -140,14 +349,18 @@ class App {
       }
       if (
         "sessionStorage" in purpose &&
-        purpose.sessionStorage &&
-        purpose.sessionStorage.length &&
+        purpose.sessionStorage?.length &&
         window.sessionStorage
       ) {
-        const items: { [key: string]: any } = { ...window.sessionStorage };
+        const items: Record<string, any> = { ...window.sessionStorage };
         for (const [key, value] of Object.entries(items)) {
           purpose.sessionStorage?.forEach((rule: RegExp) => {
             if (rule.test(key)) {
+              if (this.debug) {
+                console.info(
+                  `gcmp remove from session storage: ${key}: ${value} for purpose: ${purpose.purpose}`,
+                );
+              }
               window.sessionStorage.removeItem(key);
             }
           });

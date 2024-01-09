@@ -1,0 +1,6 @@
+_.eslintrc.js
+dist/*
+dev/*
+public/*
+local/*
+node_modules

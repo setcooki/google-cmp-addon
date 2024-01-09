@@ -1,4 +1,4 @@
-import { ConfigType } from "../types";
+import { type ConfigType } from "../types";
 import App from "../core/app";
 
 export interface GcmpComponentProps {
