@@ -21,12 +21,12 @@ class App {
   purposes: PurposesType | null;
   embedOptions: EmbedOptionsType | undefined;
   elementOptions: ElementOptionsType | undefined;
+  reloadAfterUserAction: boolean;
   onInit: (app: App) => void | undefined;
   onAdStatus: ((status: number) => void) | undefined;
 
-  protected waitForGfcTimeout: null | ReturnType<typeof setTimeout> = setTimeout(
-    () => {},
-  );
+  protected waitForGfcTimeout: null | ReturnType<typeof setTimeout> =
+    setTimeout(() => {});
 
   private readonly waitForGfcInitTs: number;
 
@@ -45,10 +45,14 @@ class App {
     this.elementOptions = config.elementOptions ?? {};
     this.waitForGfcInitTs = Date.now();
     this.waitForGfcTimeout = null;
+    this.reloadAfterUserAction = config.reloadAfterUserAction ?? false;
     this.onInit = config.onInit ?? undefined;
     this.onAdStatus = config.onAdStatus ?? undefined;
     if (!this.initWithGoogle && this.waitForDom === undefined) {
       this.waitForDom = true;
+    }
+    if (this.debug) {
+      console.info("gcmp init with config", config);
     }
     this.init();
   }
@@ -88,12 +92,23 @@ class App {
   }
 
   private initGoogle(): void {
+    const observer = new MutationObserver((mutations, obs) => {
+      const dialog = document.getElementsByClassName("fc-choice-dialog");
+      if (dialog.length) {
+        this?.onInit(this);
+        obs.disconnect();
+        return;
+      }
+    });
+    observer.observe(document, {
+      childList: true,
+      subtree: true,
+    });
     this.waitForGfc(() => {
-      this?.onInit(this);
       window.googlefc.callbackQueue.push({
-        "CONSENT_DATA_READY": () => {
+        CONSENT_DATA_READY: () => {
           window.googlefc.callbackQueue.push({
-            "AD_BLOCK_DATA_READY": () => {
+            AD_BLOCK_DATA_READY: () => {
               if (this.debug) {
                 console.info("gcmp ad block data ready callback");
               }
@@ -109,9 +124,15 @@ class App {
             window.__tcfapi(
               "addEventListener",
               this.tcfVersion,
-              (data: any) => {
+              (data: TcfData) => {
                 if (this.debug) {
                   console.info("gcmp tcfapi ready callback", data);
+                }
+                if (
+                  this.reloadAfterUserAction &&
+                  data?.eventStatus === "useractioncomplete"
+                ) {
+                  window.location.reload();
                 }
                 if (
                   "purpose" in data &&

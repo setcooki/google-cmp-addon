@@ -1,6 +1,10 @@
 import type App from "./core/app";
 
 declare global {
+  interface TcfData extends Record<any, any> {
+    eventStatus: string;
+  }
+
   interface Window {
     gcmp: App;
     googlefc: {
@@ -49,6 +53,7 @@ export interface ConfigType {
   purposes?: PurposesType;
   embedOptions?: EmbedOptionsType;
   elementOptions?: ElementOptionsType;
+  reloadAfterUserAction?: boolean;
   onInit: (app: App) => void;
   onAdStatus?: (status: number) => void;
 }
