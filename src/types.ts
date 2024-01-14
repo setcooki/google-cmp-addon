@@ -29,6 +29,11 @@ export interface PurposeType {
   cookies?: RegExp[];
   localStorage?: RegExp[];
   sessionStorage?: RegExp[];
+  onRender?: (
+    consent: boolean,
+    nodes: NodeListOf<HTMLElement>,
+    app: App,
+  ) => undefined | boolean;
 }
 
 export type PurposesType = PurposeType[];
@@ -55,6 +60,8 @@ export interface ConfigType {
   elementOptions?: ElementOptionsType;
   reloadAfterUserAction?: boolean;
   onInit: (app: App) => void;
+  onUi: (app: App) => void;
+  onLoad: (app: App) => void;
   onAdStatus?: (status: number) => void;
 }
 

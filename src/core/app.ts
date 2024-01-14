@@ -23,8 +23,10 @@ class App {
   elementOptions: ElementOptionsType | undefined;
   reloadAfterUserAction: boolean;
   onInit: (app: App) => void | undefined;
+  onUi: (app: App) => void | undefined;
+  onLoad: (app: App) => void | undefined;
   onAdStatus: ((status: number) => void) | undefined;
-
+  protected tcfStatus: string;
   protected waitForGfcTimeout: null | ReturnType<typeof setTimeout> =
     setTimeout(() => {});
 
@@ -47,7 +49,10 @@ class App {
     this.waitForGfcTimeout = null;
     this.reloadAfterUserAction = config.reloadAfterUserAction ?? false;
     this.onInit = config.onInit ?? undefined;
+    this.onUi = config.onUi ?? undefined;
+    this.onLoad = config.onLoad ?? undefined;
     this.onAdStatus = config.onAdStatus ?? undefined;
+    this.tcfStatus = "";
     if (!this.initWithGoogle && this.waitForDom === undefined) {
       this.waitForDom = true;
     }
@@ -68,6 +73,8 @@ class App {
       this.initGoogle();
     } else {
       this?.onInit(this);
+      this?.onLoad(this);
+      this?.onUi(this);
     }
     this.initCss();
     this.initialized = true;
@@ -91,11 +98,13 @@ class App {
     }
   }
 
-  private initGoogle(): void {
+  protected initGoogle(): void {
     const observer = new MutationObserver((mutations, obs) => {
       const dialog = document.getElementsByClassName("fc-choice-dialog");
       if (dialog.length) {
-        this?.onInit(this);
+        if (this.onUi && typeof this.onUi === "function") {
+          this.onUi(this);
+        }
         obs.disconnect();
         return;
       }
@@ -127,6 +136,17 @@ class App {
               (data: TcfData) => {
                 if (this.debug) {
                   console.info("gcmp tcfapi ready callback", data);
+                }
+                this.tcfStatus = data?.eventStatus;
+                if (
+                  this.tcfStatus === "tcloaded" &&
+                  this.onLoad &&
+                  typeof this.onLoad === "function"
+                ) {
+                  this.onLoad(this);
+                }
+                if (this.onInit && typeof this.onInit === "function") {
+                  this.onInit(this);
                 }
                 if (
                   this.reloadAfterUserAction &&
@@ -161,7 +181,7 @@ class App {
     });
   }
 
-  private initCss(): void {
+  protected initCss(): void {
     const head = this.root.getElementsByTagName("head");
     const placeholder = this.embedOptions?.svgBackground
       ? this.embedOptions?.svgBackground
@@ -235,7 +255,6 @@ class App {
 
   render(consents: ConsentsType): void {
     const _render = (): void => {
-      //const purposes = new Map<string, PurposeType>([]);
       const purposes: Record<number, PurposeType[]> = {};
       this.purposes?.forEach((p: PurposeType): void => {
         if (!(p.purpose in purposes)) {
@@ -243,23 +262,32 @@ class App {
         }
         purposes[p.purpose].push(p);
       });
-
       Object.keys(consents).forEach((k: any): void => {
         const key = k as number;
-        const value = consents[key] as boolean;
+        const consent = consents[key] as boolean;
         if (key in purposes) {
           if (this.debug) {
             console.info(
-              `gcmp rendering purpose: ${key} with consent: ${value}`,
+              `gcmp rendering purpose: ${key} with consent: ${consent}`,
             );
           }
           purposes[key].forEach((p: PurposeType) => {
             if (this.debug) {
               console.info(`gcmp rendering object`, p);
             }
-            this.renderOnOff(p, value);
-            this.renderCookies(p, value);
-            this.renderStorage(p, value);
+            if (p.onRender && typeof p.onRender === "function") {
+              const result = p.onRender(
+                consent,
+                this.root.querySelectorAll(p.selectors),
+                this,
+              );
+              if (result === false) {
+                return;
+              }
+            }
+            this.renderOnOff(p, consent);
+            this.renderCookies(p, consent);
+            this.renderStorage(p, consent);
           });
         }
       });
@@ -281,47 +309,59 @@ class App {
     let elementOptions = this.elementOptions ?? {};
     const tags: string[] = purpose.tags ?? [];
     const mode: string | undefined = purpose.mode ?? undefined;
-    const nodes: NodeListOf<HTMLElement> = this.root.querySelectorAll(
-      purpose.selectors,
-    );
-    if (nodes.length) {
-      nodes.forEach((element: HTMLElement): void | null => {
-        const name = element.nodeName.toLowerCase();
-        if (this.debug) {
-          console.info(
-            `gcmp rendering: ${name} for purpose: ${purpose.purpose} (${purpose.selectors}) to: ${on}`,
-          );
-        }
-        if (tags.length && !tags.includes(name)) {
+    try {
+      const nodes: NodeListOf<HTMLElement> = this.root.querySelectorAll(
+        purpose.selectors,
+      );
+      if (this.debug) {
+        console.info(
+          `gcmp found the following nodes to render for purpose: ${purpose.purpose} (${purpose.selectors})`,
+          nodes,
+        );
+      }
+      if (nodes.length) {
+        nodes.forEach((element: HTMLElement): void | null => {
+          const name = element.nodeName.toLowerCase();
           if (this.debug) {
-            console.warn(
-              `gcmp skipping: ${name} for purpose: ${purpose.purpose} (${purpose.selectors}) since its not in provided tag list`,
+            console.info(
+              `gcmp rendering: ${name} for purpose: ${purpose.purpose} (${purpose.selectors}) to: ${on}`,
             );
           }
-          return null;
-        }
-        switch (name) {
-          case "script":
-            new Script(element)[on ? "on" : "off"]();
-            break;
-          case "iframe":
-            new Iframe(element, this.embedOptions)[on ? "on" : "off"]();
-            break;
-          default:
+          if (tags.length && !tags.includes(name)) {
             if (this.debug) {
               console.warn(
-                `gcmp tag: ${name} is not defined and falls back to default element`,
+                `gcmp skipping: ${name} for purpose: ${purpose.purpose} (${purpose.selectors}) since its not in provided tag list`,
               );
             }
-            if (mode) {
-              elementOptions = {
-                ...elementOptions,
-                ...({ mode: mode } as ElementOptionsType),
-              };
-            }
-            new PartsElement(element, elementOptions)[on ? "on" : "off"]();
-        }
-      });
+            return null;
+          }
+          switch (name) {
+            case "script":
+              new Script(element)[on ? "on" : "off"]();
+              break;
+            case "iframe":
+              new Iframe(element, this.embedOptions)[on ? "on" : "off"]();
+              break;
+            default:
+              if (this.debug) {
+                console.warn(
+                  `gcmp tag: ${name} is not defined and falls back to default element`,
+                );
+              }
+              if (mode) {
+                elementOptions = {
+                  ...elementOptions,
+                  ...({ mode: mode } as ElementOptionsType),
+                };
+              }
+              new PartsElement(element, elementOptions)[on ? "on" : "off"]();
+          }
+        });
+      }
+    } catch (e: any) {
+      if (this.debug) {
+        console.warn(`gcmp purpose: ${purpose.purpose} has illegal selectors`);
+      }
     }
   }
 
