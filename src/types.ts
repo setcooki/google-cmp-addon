@@ -33,7 +33,7 @@ export interface PurposeType {
     consent: boolean,
     nodes: NodeListOf<HTMLElement>,
     app: App,
-  ) => undefined | boolean;
+  ) => undefined | void | boolean;
 }
 
 export type PurposesType = PurposeType[];
@@ -59,9 +59,9 @@ export interface ConfigType {
   embedOptions?: EmbedOptionsType;
   elementOptions?: ElementOptionsType;
   reloadAfterUserAction?: boolean;
-  onInit: (app: App) => void;
-  onUi: (app: App) => void;
-  onLoad: (app: App) => void;
+  onInit?: (app: App) => void;
+  onUi?: (app: App) => void;
+  onLoad?: (app: App) => void;
   onAdStatus?: (status: number) => void;
 }
 

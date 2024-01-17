@@ -1,7 +1,20 @@
 {
   "name": "google-cmp-addon",
-  "version": "1.0.0",
-  "description": "Adds the missing functionality for google consent pupose management",
+  "version": "0.0.1",
+  "description": "Adds the missing functionality for google consent purpose management",
+  "keywords": [
+    "google",
+    "cmp",
+    "tcf",
+    "adsense",
+    "iab"
+  ],
+  "author": "Frank Mueller <set@cooki.me>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/setcooki/google-cmp-addon/issues"
+  },
+  "homepage": "https://github.com/setcooki/google-cmp-addon#readme",
   "scripts": {
     "dev": "webpack serve --config webpack.config.react.js --port 3003 --hot --open",
     "dev-build": "webpack --config webpack.config.react.js --mode development",
@@ -35,16 +48,6 @@
     "type": "git",
     "url": "git+https://github.com/setcooki/google-cmp-addon.git"
   },
-  "keywords": [
-    "google",
-    "cmp"
-  ],
-  "author": "Frank Mueller <set@cooki.me>",
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/setcooki/google-cmp-addon/issues"
-  },
-  "homepage": "https://github.com/setcooki/google-cmp-addon#readme",
   "devDependencies": {
     "@babel/core": "^7.23.6",
     "@babel/preset-env": "^7.23.6",

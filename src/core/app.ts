@@ -22,9 +22,9 @@ class App {
   embedOptions: EmbedOptionsType | undefined;
   elementOptions: ElementOptionsType | undefined;
   reloadAfterUserAction: boolean;
-  onInit: (app: App) => void | undefined;
-  onUi: (app: App) => void | undefined;
-  onLoad: (app: App) => void | undefined;
+  onInit: ((app: App) => void) | undefined;
+  onUi: ((app: App) => void) | undefined;
+  onLoad: ((app: App) => void) | undefined;
   onAdStatus: ((status: number) => void) | undefined;
   protected tcfStatus: string;
   protected waitForGfcTimeout: null | ReturnType<typeof setTimeout> =
@@ -72,9 +72,15 @@ class App {
     if (this.initWithGoogle) {
       this.initGoogle();
     } else {
-      this?.onInit(this);
-      this?.onLoad(this);
-      this?.onUi(this);
+      if (this.onInit && typeof this.onInit === "function") {
+        this.onInit(this);
+      }
+      if (this.onLoad && typeof this.onLoad === "function") {
+        this.onLoad(this);
+      }
+      if (this.onUi && typeof this.onUi === "function") {
+        this.onUi(this);
+      }
     }
     this.initCss();
     this.initialized = true;
