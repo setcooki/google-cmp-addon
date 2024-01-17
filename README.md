@@ -30,7 +30,7 @@ full of bugs!
 To use the widget on your website, simply embed the js as well as a valid config.
 
 ```html
-<!-- make sure the config gets loaded before Klaro -->
+<!-- make sure the config gets after the libary code -->
 <script defer type="text/javascript" src="/path/to/js"></script>
 <script defer type="text/javascript" src="/path/to/config.js"></script>
 ```
