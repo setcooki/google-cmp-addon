@@ -27,6 +27,7 @@ class App {
   onLoad: ((app: App) => void) | undefined;
   onAdStatus: ((status: number) => void) | undefined;
   protected tcfStatus: string;
+  protected tcfData?: TcfData;
   protected waitForGfcTimeout: null | ReturnType<typeof setTimeout> =
     setTimeout(() => {});
 
@@ -89,6 +90,30 @@ class App {
     }
   }
 
+  public refresh(): void {
+    const data = this?.tcfData;
+    if (this.debug) {
+      console.info("gcmp refresh");
+    }
+    if (
+      data &&
+      "purpose" in data &&
+      data.purpose &&
+      typeof data.purpose === "object"
+    ) {
+      if (
+        "consents" in data.purpose &&
+        data.purpose.consents &&
+        typeof data.purpose.consents === "object"
+      ) {
+        if (this.debug) {
+          console.info("gcmp refresh consents", data.purpose.consents);
+        }
+        this.render(data.purpose.consents as ConsentsType);
+      }
+    }
+  }
+
   private waitForGfc(callback: () => void): void {
     if (this.waitForGfcInitTs + 3000 < Date.now()) {
       this.waitForGfcTimeout = null;
@@ -140,6 +165,7 @@ class App {
               "addEventListener",
               this.tcfVersion,
               (data: TcfData) => {
+                this.tcfData = data;
                 if (this.debug) {
                   console.info("gcmp tcfapi ready callback", data);
                 }
