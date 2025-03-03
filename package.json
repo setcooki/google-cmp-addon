@@ -44,6 +44,9 @@
   "files": [
     "dist/esm"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/setcooki/google-cmp-addon.git"
