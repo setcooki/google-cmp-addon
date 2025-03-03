@@ -1,6 +1,6 @@
 import * as React from "react";
 import { createRoot } from "react-dom/client";
-import { GcmpComponent } from "./app";
+import { GcmpProvider } from "./app";
 
 const container = document.getElementById("root") as HTMLElement | null;
 if (!container) {
@@ -8,30 +8,29 @@ if (!container) {
 }
 const root = createRoot(container);
 
+const config = {
+  debug: true,
+  purposes: [
+    {
+      purpose: 10,
+      selectors: '[data-name="analytics"],[data-consent="analytics"]',
+      cookies: [/^ga/i, /^_ga/i, /^_gid/i],
+    },
+    {
+      purpose: 7,
+      selectors: '[data-name="externalmedia"],[data-consent="externalmedia"]',
+    },
+  ],
+};
+
 const App = (): React.ReactElement => {
-  return (
-    <GcmpComponent
-      config={{
-        debug: true,
-        purposes: [
-          {
-            purpose: 10,
-            selectors: '[data-name="analytics"],[data-consent="analytics"]',
-            cookies: [/^ga/i, /^_ga/i, /^_gid/i],
-          },
-          {
-            purpose: 7,
-            selectors:
-              '[data-name="externalmedia"],[data-consent="externalmedia"]',
-          },
-        ],
-      }}
-    />
-  );
+  return <>Hello</>;
 };
 
 root.render(
   <React.StrictMode>
-    <App />
+    <GcmpProvider config={config}>
+      <App />
+    </GcmpProvider>
   </React.StrictMode>,
 );

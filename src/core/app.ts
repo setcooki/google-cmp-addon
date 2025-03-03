@@ -68,7 +68,7 @@ class App {
       console.info("gcmp initializing");
     }
     if (!this.purposes) {
-      throw new Error("No purposes configured");
+      console.error("No purposes configured");
     }
     if (this.initWithGoogle) {
       this.initGoogle();
@@ -115,10 +115,19 @@ class App {
   }
 
   private waitForGfc(callback: () => void): void {
-    if (this.waitForGfcInitTs + 3000 < Date.now()) {
+    const elapsedTime = Date.now() - this.waitForGfcInitTs;
+
+    if (elapsedTime >= 3000) {
+      if (this.waitForGfcTimeout) {
+        clearTimeout(this.waitForGfcTimeout);
+      }
       this.waitForGfcTimeout = null;
-      throw new Error("Google consent api not found");
+      if (this.debug) {
+        console.error("Google consent API not found (timed out)");
+      }
+      return;
     }
+
     if ("googlefc" in window && window.googlefc) {
       this.waitForGfcTimeout = null;
       callback();
@@ -275,14 +284,17 @@ class App {
   }
 
   revoke(): void {
-    if (!this.initialized) {
-      throw new Error("gcmp not initialized");
+    if (this.initialized) {
+      window.googlefc.callbackQueue.push({
+        CONSENT_DATA_READY: () => {
+          window.googlefc.showRevocationMessage();
+        },
+      });
+    } else {
+      if (this.debug) {
+        console.error("gcmp not initialized");
+      }
     }
-    window.googlefc.callbackQueue.push({
-      CONSENT_DATA_READY: () => {
-        window.googlefc.showRevocationMessage();
-      },
-    });
   }
 
   render(consents: ConsentsType): void {
