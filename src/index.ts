@@ -1,5 +1,11 @@
 import { type ConfigType } from "./types";
-import { GcmpComponent } from "./app";
+import {
+  GcmpComponent,
+  GcmpProvider,
+  useGcmpProvider,
+  type GcmpComponentProps,
+  type GcmpProviderProps,
+} from "./app";
 import App from "./core/app";
 
 let app: App | undefined = undefined;
@@ -13,4 +19,12 @@ const refresh = (): void => {
   app?.refresh();
 };
 
-export { init, refresh, GcmpComponent };
+export {
+  init,
+  refresh,
+  GcmpComponent,
+  GcmpProvider,
+  useGcmpProvider,
+  type GcmpComponentProps,
+  type GcmpProviderProps,
+};
