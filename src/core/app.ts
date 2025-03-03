@@ -390,6 +390,7 @@ class App {
           }
         });
       }
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (e: any) {
       if (this.debug) {
         console.warn(`gcmp purpose: ${purpose.purpose} has illegal selectors`);

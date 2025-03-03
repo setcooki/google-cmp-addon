@@ -27,6 +27,9 @@ full of bugs!
 
 ## Getting started
 
+### Javascript usage
+
+```javascript
 To use the widget on your website, simply embed the js as well as a valid config.
 
 ```html
@@ -61,6 +64,28 @@ window.gcmp.init({
     selectors: '[data-name="security"],[data-consent="security"]',
   }]
 });
+```
+
+### React usage
+
+```bash
+npm install google-cmp-addon
+yarn install google-cmp-addon
+```
+Use with react provider
+
+```jsx
+import React from 'react';
+import {GcmpProvider} from "google-cmp-addon";
+
+export const App = () => {
+  const config = {
+    // your config here - see above´s javascript usage
+  }
+  return (<GcmpProvider config={config}>
+    Hello React
+  </GcmpProvider>)
+}
 ```
 
 See all the options and configurations here. Please also consult the IAB official

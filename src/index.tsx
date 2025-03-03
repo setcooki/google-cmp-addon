@@ -9,7 +9,25 @@ if (!container) {
 const root = createRoot(container);
 
 const App = (): React.ReactElement => {
-  return <GcmpComponent config={{}} />;
+  return (
+    <GcmpComponent
+      config={{
+        debug: true,
+        purposes: [
+          {
+            purpose: 10,
+            selectors: '[data-name="analytics"],[data-consent="analytics"]',
+            cookies: [/^ga/i, /^_ga/i, /^_gid/i],
+          },
+          {
+            purpose: 7,
+            selectors:
+              '[data-name="externalmedia"],[data-consent="externalmedia"]',
+          },
+        ],
+      }}
+    />
+  );
 };
 
 root.render(
