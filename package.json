@@ -23,6 +23,7 @@
     "build": "tsup && webpack",
     "build-esm": "tsup",
     "build-umd": "webpack",
+    "tag": "yarn version --patch && git push && git push --tags",
     "typecheck": "tsc --noEmit",
     "pretty": "npx prettier --write 'src/**/*.{tsx,ts,js}'",
     "lint": "npx eslint src --ext tsx,ts,js --report-unused-disable-directives --fix --max-warnings 10",
